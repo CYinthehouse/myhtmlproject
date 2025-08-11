@@ -14,6 +14,13 @@ const listenBtn = document.getElementById("listenBtn");
 const nextBtn = document.getElementById("nextBtn");
 const message = document.getElementById("message");
 
+function normalize(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function loadCard() {
   const { phrase, answer } = flashcards[current];
   front.textContent = phrase;
@@ -41,29 +48,39 @@ if (SpeechRecognition) {
 listenBtn.addEventListener("click", () => {
   if (!recognition) return;
   message.textContent = "Listening...";
+  listenBtn.disabled = true;
   recognition.start();
 });
 
 if (recognition) {
+  recognition.addEventListener("start", () => {
+    if (nextBtn.disabled) {
+      message.textContent = "Listening...";
+    }
+  });
   recognition.addEventListener("result", e => {
-    const transcript = e.results[0][0].transcript.trim().toLowerCase();
-    const expected = flashcards[current].phrase.toLowerCase();
+    const transcript = normalize(e.results[0][0].transcript.trim());
+    const expected = normalize(flashcards[current].phrase);
 
     if (transcript === expected) {
       card.classList.add("flipped");
       message.textContent = "Correct!";
       nextBtn.disabled = false;
+      recognition.stop();
     } else {
       message.textContent = `Heard "${transcript}". Try again.`;
     }
   });
 
   recognition.addEventListener("end", () => {
-    message.textContent += "";
+    if (nextBtn.disabled) {
+      recognition.start();
+    }
   });
 }
 
 nextBtn.addEventListener("click", () => {
   current = (current + 1) % flashcards.length;
   loadCard();
+  recognition.start();
 });
